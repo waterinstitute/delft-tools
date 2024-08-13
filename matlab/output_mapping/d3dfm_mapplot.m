@@ -52,6 +52,7 @@ vectorplot.vector_count=''; % e.g. 10 (in each direction)
 vectorplot.vector_scaling=''; %e.g. 0.5
 vectorplot.scalevector_equivmagnitude=''; 
 vectorplot.unit=''; %m/s'
+vectorplot.inpolygon=''; %only display vectors within polygon
 
 % output options
 output.simname='';
@@ -104,7 +105,9 @@ for setting = 1:2:length(varargin)
             vectorplot.scalevector_equivmagnitude = varargin{setting + 1}; 
         case 'vectorplot.unit'
             vectorplot.unit = varargin{setting + 1}; 
-
+        case 'vectorplot.inpolygon'
+            vectorplot.inpolygon = varargin{setting + 1}; 
+            
         case 'output.simname'
             output.simname = varargin{setting + 1};
         case 'output.destination_folder'
@@ -231,15 +234,15 @@ for i_interval=1:length(processing.interval)
     if ~isempty(vectorplot.parameter_modelname)
         %WIP: wrap vector averaging and concatenating into function        
         %average
-        [d3dfm_mapdata_vec_mag_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_mag,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index)  
-        [d3dfm_mapdata_vec_xcomp_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_xcomp,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index)      
-        [d3dfm_mapdata_vec_ycomp_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_ycomp,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index)  
+        [d3dfm_mapdata_vec_mag_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_mag,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index);  
+        [d3dfm_mapdata_vec_xcomp_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_xcomp,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index);      
+        [d3dfm_mapdata_vec_ycomp_processed,~]=d3dfm_processmapdata(d3dfm_mapdata_vec_ycomp,model_time,interval,processing.intervalProcessing,plotting.tstart_index,plotting.tend_index);  
         
         %compile concatenated arrays
         d3dfm_mapdata_face_x=[];
         d3dfm_mapdata_face_y=[];
         for iMap=1:length(ncMap_dir)
-            d3dfm_mapdata_vec_dir_degN_processed{iMap,1}=mod(90-atan2d(d3dfm_mapdata_vec_ycomp_processed{iMap,1},d3dfm_mapdata_vec_xcomp_processed{iMap,1}),360) %y,x
+            d3dfm_mapdata_vec_dir_degN_processed{iMap,1}=mod(90-atan2d(d3dfm_mapdata_vec_ycomp_processed{iMap,1},d3dfm_mapdata_vec_xcomp_processed{iMap,1}),360); %y,x
             d3dfm_mapdata_face_x=[d3dfm_mapdata_face_x; FMgeometry{iMap,1}.face_x];
             d3dfm_mapdata_face_y=[d3dfm_mapdata_face_y; FMgeometry{iMap,1}.face_y];
         end
@@ -308,16 +311,21 @@ for i_interval=1:length(processing.interval)
                 vectorplot_x_int = interpolant_xcomp(vectorplot_xmesh,vectorplot_ymesh);
                 vectorplot_y_int = interpolant_ycomp(vectorplot_xmesh,vectorplot_ymesh);
                 
-%                 % remove interpolated data outside of grid perimeter
-%                 vectorplot_perimeter=readldb('grid_perimeter.pol');
-%                 vectorplot_insideperimeter=inpolygon(vectorplot_xmesh,vectorplot_ymesh,vectorplot_perimeter.x,vectorplot_perimeter.y);
-%                 vectorplot_x_int(~vectorplot_insideperimeter)=NaN;
-%                 vectorplot_y_int(~vectorplot_insideperimeter)=NaN;
+                % remove interpolated data outside of grid perimeter
+                if ~isempty(vectorplot.inpolygon)
+                    vectorplot_perimeter=readldb(vectorplot.inpolygon);
+                    vectorplot_insideperimeter=inpolygon(vectorplot_xmesh,vectorplot_ymesh,vectorplot_perimeter.x,vectorplot_perimeter.y);
+                    vectorplot_x_int(~vectorplot_insideperimeter)=NaN;
+                    vectorplot_y_int(~vectorplot_insideperimeter)=NaN;
+                end
+
+
                 
                 % ADD SCALE ARROW
                 if ~isempty(vectorplot.scalevector_equivmagnitude)
                     % define number of indices that need to be ommitted to make room for scale arrow
-                    vectorplot_scalearrow_verticalmargin=ceil(0.035*vectorplot.vector_count); % omit top 12%
+%                     vectorplot_scalearrow_verticalmargin=ceil(0.035*vectorplot.vector_count); % omit top 12%
+                    vectorplot_scalearrow_verticalmargin=ceil(0.10*vectorplot.vector_count); % omit top 12%
                     vectorplot_scalearrow_horizontalmargin=ceil(0.35*vectorplot.vector_count); % omit left 35%
                     
                     % replace values with 0 in a given margin from the top left of the plot (bottom left in table)
